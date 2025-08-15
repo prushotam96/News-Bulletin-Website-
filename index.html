@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News App with Slider</title>
+    <style>
+        /* Common styles for both news cards and slider */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background-color: #333;
+            color: white;
+        }
+        #cards-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            padding: 1rem;
+            justify-content: center; /* Center align cards */
+        }
+        .news-card {
+            width: 300px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+            cursor: pointer;
+            display: flex; /* Ensures content is aligned vertically */
+            flex-direction: column; /* Stack content vertically */
+        }
+        .news-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        .news-card .news-content {
+            flex: 1; /* Expand content area */
+            padding: 1rem;
+        }
+        .news-card .news-title {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .news-card .news-source {
+            color: gray;
+            font-size: 0.9rem;
+        }
+        .news-card .news-desc {
+            margin-top: 0.5rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3; /* Limit description to 3 lines */
+            -webkit-box-orient: vertical;
+        }
+        nav {
+            display: flex;
+            gap: 1rem;
+        }
+        .nav-item {
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .nav-item.active {
+            background-color: #333;
+            color: white;
+        }
+
+        /* Styles for the image slider */
+        .slider-container {
+            max-width: 800px;
+            margin: 20px auto;
+            position: relative;
+            overflow: hidden;
+        }
+        .slides {
+            display: flex;
+            transition: transform 0.5s ease;
+        }
+        .slide {
+            min-width: 100%;
+            overflow: hidden;
+        }
+        .slide img {
+            width: 100%;
+            vertical-align: middle;
+        }
+        .arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50px;
+            height: 50px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            text-align: center;
+            line-height: 50px;
+            cursor: pointer;
+        }
+        .arrow.left {
+            left: 10px;
+        }
+        .arrow.right {
+            right: 10px;
+        }
+        .dots {
+            text-align: center;
+            margin-top: 10px;
+        }
+        .dot {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            background-color: #bbb;
+            border-radius: 50%;
+            margin: 0 5px;
+            cursor: pointer;
+        }
+        .dot.active {
+            background-color: #717171;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <button onclick="reload()">Reload</button>
+        </div>
+        <div>
+            <input type="text" id="search-text" placeholder="Search news...">
+            <button id="search-button">Search</button>
+        </div>
+    </header>
+    <nav>
+        <div id="India" class="nav-item active" onclick="onNavItemClick('India')">India</div>
+        <div id="Technology" class="nav-item" onclick="onNavItemClick('Technology')">Technology</div>
+        <div id="Sports" class="nav-item" onclick="onNavItemClick('Sports')">Sports</div>
+        <div id="Business" class="nav-item" onclick="onNavItemClick('Business')">Business</div>
+    </nav>
+
+    <!-- Slider Container -->
+    <div class="slider-container">
+        <div class="slides">
+            <!-- Placeholder slides will be replaced dynamically -->
+            <div class="slide"><img src="https://via.placeholder.com/800x400?text=Slide%201" alt="Slide 1"></div>
+            <div class="slide"><img src="https://via.placeholder.com/800x400?text=Slide%202" alt="Slide 2"></div>
+            <div class="slide"><img src="https://via.placeholder.com/800x400?text=Slide%203" alt="Slide 3"></div>
+            <div class="slide"><img src="https://via.placeholder.com/800x400?text=Slide%204" alt="Slide 4"></div>
+            <div class="slide"><img src="https://via.placeholder.com/800x400?text=Slide%205" alt="Slide 5"></div>
+        </div>
+        <div class="arrow left" onclick="changeSlide(-1)">&#10094;</div>
+        <div class="arrow right" onclick="changeSlide(1)">&#10095;</div>
+    </div>
+    <div class="dots" id="dots-container"></div>
+
+    <div id="cards-container"></div>
+
+    <template id="template-news-card">
+        <div class="news-card">
+            <img id="news-img" src="" alt="News Image">
+            <div class="news-content">
+                <div id="news-title" class="news-title"></div>
+                <div id="news-source" class="news-source"></div>
+                <div id="news-desc" class="news-desc"></div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        const API_KEY = "8f5acd4eb9eb40888ded3038f9e6a416";
+        const url = "https://newsapi.org/v2/everything?q=";
+
+        window.addEventListener("load", () => {
+            fetchNews("India");
+            initializeSlider();
+        });
+
+        function reload() {
+            window.location.reload();
+        }
+
+        async function fetchNews(query) {
+            const res = await fetch(${url}${query}&apiKey=${API_KEY});
+            const data = await res.json();
+            bindData(data.articles);
+            updateSlider(data.articles);
+            console.log(data);
+        }
+
+        function bindData(articles) {
+            const cardsContainer = document.getElementById("cards-container");
+            const newsCardTemplate = document.getElementById("template-news-card");
+
+            cardsContainer.innerHTML = "";
+
+            articles.forEach((article) => {
+                if (!article.urlToImage) return;
+                const cardClone = newsCardTemplate.content.cloneNode(true);
+                fillDataInCard(cardClone, article);
+                cardsContainer.appendChild(cardClone);
+            });
+        }
+
+        function fillDataInCard(cardClone, article) {
+            const newsImg = cardClone.querySelector("#news-img");
+            const newsTitle = cardClone.querySelector("#news-title");
+            const newsSource = cardClone.querySelector("#news-source");
+            const newsDesc = cardClone.querySelector("#news-desc");
+
+            newsImg.src = article.urlToImage;
+            newsTitle.innerHTML = article.title;
+            newsDesc.innerHTML = article.description;
+
+            const date = new Date(article.publishedAt).toLocaleString("en-US", {
+                timeZone: "Asia/Jakarta",
+            });
+
+            newsSource.innerHTML = ${article.source.name} · ${date};
+
+            cardClone.firstElementChild.addEventListener("click", () => {
+                window.open(article.url, "_blank");
+            });
+        }
+
+        let curSelectedNav = null;
+        function onNavItemClick(id) {
+            fetchNews(id);
+            const navItem = document.getElementById(id);
+            curSelectedNav?.classList.remove("active");
+            curSelectedNav = navItem;
+            curSelectedNav.classList.add("active");
+        }
+
+        const searchButton = document.getElementById("search-button");
+        const searchText = document.getElementById("search-text");
+
+        searchButton.addEventListener("click", () => {
+            const query = searchText.value;
+            if (!query) return;
+            fetchNews(query);
+            curSelectedNav?.classList.remove("active");
+            curSelectedNav = null;
+        });
+
+        // Slider functionality
+        let slideIndex = 0;
+        const slides = document.querySelectorAll('.slide');
+
+        function initializeSlider() {
+            showSlides();
+            createDots();
+        }
+
+        function showSlides() {
+            slides.forEach(slide => slide.style.display = 'none');
+            slides[slideIndex].style.display = 'block';
+        }
+
+        function createDots() {
+            const dotsContainer = document.getElementById('dots-container');
+            dotsContainer.innerHTML = ""; // Clear existing dots
+
+            slides.forEach((_, index) => {
+                const dot = document.createElement('span');
+                dot.classList.add('dot');
+                dot.setAttribute('onclick', currentSlide(${index}));
+                dotsContainer.appendChild(dot);
+            });
+
+            // Highlight the active dot
+            dotsContainer.children[slideIndex].classList.add('active');
+        }
+
+        function updateSlider(articles) {
+            // Update slide content with fetched news data
+            slides.forEach((slide, index) => {
+                const article = articles[index % articles.length]; // Handle case when fewer articles than slides
+                const img = slide.querySelector('img');
+                const altText = article ? article.title : Slide ${index + 1};
+                img.src = article ? article.urlToImage : https://via.placeholder.com/800x400?text=${altText};
+                img.alt = altText;
+            });
+
+            // Update dots and show the current slide
+            createDots();
+            showSlides();
+        }
+
+        function changeSlide(n) {
+            slideIndex += n;
+            if (slideIndex >= slides.length) {
+                slideIndex = 0;
+            } else if (slideIndex < 0) {
+                slideIndex = slides.length - 1;
+            }
+            showSlides();
+        }
+
+        function currentSlide(n) {
+            slideIndex = n;
+            showSlides();
+        }
+
+        // Automatic slideshow
+        setInterval(() => {
+            changeSlide(1);
+        }, 5000); // Change slide every 5 seconds
+    </script>
+</body>
+</html>
